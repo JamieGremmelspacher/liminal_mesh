@@ -36,6 +36,7 @@
             font-size: 11px;
             letter-spacing: 1px;
             line-height: 1.8;
+            pointer-events: none;
         }
 
         .key {
@@ -44,6 +45,65 @@
         
         #soundStatus {
             color: #4a4;
+        }
+
+        /* MOBILE CONTROLS - MINIMAL */
+        #mobileControls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            border: 1px solid #444;
+            background: rgba(15, 15, 15, 0.8);
+            color: #888;
+            font-size: 20px;
+            font-family: 'Courier New', monospace;
+            border-radius: 50%;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .control-btn:active {
+            background: rgba(30, 30, 30, 0.9);
+            transform: scale(0.9);
+        }
+
+        .control-btn.active {
+            border-color: #4a4;
+            color: #4a4;
+        }
+
+        #startBtn {
+            width: 60px;
+            height: 60px;
+            font-size: 11px;
+            border-color: #4a4;
+            color: #4a4;
+        }
+
+        #startBtn.hidden {
+            display: none;
+        }
+
+        /* Hide mobile controls on desktop */
+        @media (min-width: 768px) {
+            #mobileControls {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -55,6 +115,12 @@
         <span class="key">S</span> SOUND <span id="soundStatus">ON</span><br>
         <span class="key">R</span> RESET<br>
         <span class="key" id="gridInfo">80px</span>
+    </div>
+
+    <!-- MOBILE CONTROLS - MINIMAL -->
+    <div id="mobileControls">
+        <button id="startBtn" class="control-btn">START</button>
+        <button id="soundBtn" class="control-btn active" title="Sound">♪</button>
     </div>
 
     <script>
@@ -85,6 +151,11 @@
                 
                 audioInitialized = true;
                 console.log("Audio initialized!");
+                
+                // Play a silent sound to "unlock" audio on iOS
+                particleSynth.triggerAttackRelease("C1", "32n");
+            }).catch(err => {
+                console.error("Audio initialization failed:", err);
             });
         }
         
@@ -123,12 +194,43 @@
         let prevMouseX = 0;
         let prevMouseY = 0;
 
+        // GESTURE DETECTION
+        let lastTouchDist = 0;
+        let tapCount = 0;
+        let lastTapTime = 0;
+        let tapTimeout = null;
+
         function setup() {
             createCanvas(windowWidth, windowHeight);
             frameRate(60);
             createGrid();
             prevMouseX = mouseX;
             prevMouseY = mouseY;
+            
+            // Setup mobile button handlers
+            setupMobileControls();
+        }
+
+        function setupMobileControls() {
+            // Start button
+            const startBtn = document.getElementById('startBtn');
+            if (startBtn) {
+                startBtn.addEventListener('click', () => {
+                    initAudio();
+                    startBtn.classList.add('hidden');
+                });
+            }
+
+            // Sound toggle button
+            const soundBtn = document.getElementById('soundBtn');
+            if (soundBtn) {
+                soundBtn.addEventListener('click', () => {
+                    soundEnabled = !soundEnabled;
+                    soundBtn.classList.toggle('active', soundEnabled);
+                    document.getElementById('soundStatus').textContent = soundEnabled ? 'ON' : 'OFF';
+                    document.getElementById('soundStatus').style.color = soundEnabled ? '#4a4' : '#a44';
+                });
+            }
         }
 
         function createGrid() {
@@ -405,20 +507,77 @@
             isDragging = false;
         }
 
-        // MOBILE TOUCH SUPPORT
+        // MOBILE TOUCH SUPPORT WITH GESTURES
         function touchStarted() {
-            if (!audioInitialized) initAudio();
-            isDragging = true;
-            return false; // Prevent default behavior (scrolling, zooming)
+            // Triple-tap detection
+            let now = millis();
+            if (now - lastTapTime < 300) {
+                tapCount++;
+                if (tapCount >= 2) { // 3 taps total
+                    // Reset grid on triple tap
+                    createGrid();
+                    currentParticle = null;
+                    tapCount = 0;
+                    console.log("Triple tap - Reset!");
+                    return false;
+                }
+            } else {
+                tapCount = 0;
+            }
+            lastTapTime = now;
+            
+            // Clear tap timeout
+            if (tapTimeout) clearTimeout(tapTimeout);
+            tapTimeout = setTimeout(() => { tapCount = 0; }, 400);
+            
+            // Check for pinch gesture (2 fingers)
+            if (touches.length === 2) {
+                let d = dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
+                lastTouchDist = d;
+                return false;
+            }
+            
+            // Single touch - dragging
+            if (touches.length === 1) {
+                isDragging = true;
+            }
+            
+            return false; // Prevent default
         }
         
         function touchMoved() {
-            if (!audioInitialized) initAudio();
+            // Pinch-to-zoom gesture
+            if (touches.length === 2) {
+                let d = dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
+                
+                if (lastTouchDist > 0) {
+                    let delta = d - lastTouchDist;
+                    
+                    // Pinch in (together) → denser grid
+                    // Pinch out (apart) → looser grid
+                    if (abs(delta) > 2) { // Threshold to avoid jitter
+                        gridSpacing = constrain(gridSpacing - delta * 0.2, 20, 150);
+                        createGrid();
+                        currentParticle = null;
+                        document.getElementById('gridInfo').textContent = gridSpacing.toFixed(0) + 'px';
+                    }
+                }
+                
+                lastTouchDist = d;
+                return false;
+            }
+            
             return false; // Prevent scrolling
         }
 
         function touchEnded() {
             isDragging = false;
+            
+            // Reset pinch distance when fingers lift
+            if (touches.length < 2) {
+                lastTouchDist = 0;
+            }
+            
             return false;
         }
 
