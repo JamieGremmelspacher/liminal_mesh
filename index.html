@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>LABIL–STABIL [AUDIO]</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
@@ -18,6 +18,10 @@
             overflow: hidden;
             cursor: none;
             font-family: 'Courier New', monospace;
+            touch-action: none; /* Prevent all touch gestures */
+            -webkit-touch-callout: none; /* Prevent callout on iOS */
+            -webkit-user-select: none; /* Prevent text selection */
+            user-select: none;
         }
         
         canvas {
@@ -399,6 +403,23 @@
 
         function mouseReleased() {
             isDragging = false;
+        }
+
+        // MOBILE TOUCH SUPPORT
+        function touchStarted() {
+            if (!audioInitialized) initAudio();
+            isDragging = true;
+            return false; // Prevent default behavior (scrolling, zooming)
+        }
+        
+        function touchMoved() {
+            if (!audioInitialized) initAudio();
+            return false; // Prevent scrolling
+        }
+
+        function touchEnded() {
+            isDragging = false;
+            return false;
         }
 
         function windowResized() {
