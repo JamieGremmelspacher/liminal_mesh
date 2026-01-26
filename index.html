@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LABIL–STABIL [AUDIO]</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #050808;
+            overflow: hidden;
+            cursor: none;
+            font-family: 'Courier New', monospace;
+        }
+        
+        canvas {
+            display: block;
+        }
+
+        #info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: #444;
+            font-size: 11px;
+            letter-spacing: 1px;
+            line-height: 1.8;
+        }
+
+        .key {
+            color: #ff4444;
+        }
+        
+        #soundStatus {
+            color: #4a4;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <span class="key">+</span> FEINER<br>
+        <span class="key">-</span> GRÖBER<br>
+        <span class="key">DRAG</span> EINREISSEN<br>
+        <span class="key">S</span> SOUND <span id="soundStatus">ON</span><br>
+        <span class="key">R</span> RESET<br>
+        <span class="key" id="gridInfo">80px</span>
+    </div>
+
+    <script>
+        // AUDIO SYSTEM
+        let audioInitialized = false;
+        let soundEnabled = true;
+        let tearSynth, particleSynth, reverb;
+        
+        function initAudio() {
+            if (audioInitialized) return;
+            
+            Tone.start().then(() => {
+                console.log("Audio started!");
+                
+                reverb = new Tone.Reverb({ decay: 4, wet: 0.4 }).toDestination();
+                
+                tearSynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.01, decay: 0.3, sustain: 0, release: 0.4 }
+                }).connect(reverb);
+                tearSynth.volume.value = -6;
+                
+                particleSynth = new Tone.Synth({
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.005, decay: 0.2, sustain: 0, release: 0.3 }
+                }).connect(reverb);
+                particleSynth.volume.value = -8;
+                
+                audioInitialized = true;
+                console.log("Audio initialized!");
+            });
+        }
+        
+        function updateAudio(strain, intensity, hasMovement) {
+            // Not needed anymore - only particle and tear sounds
+        }
+        
+        function playTearSound(intensity, x, y) {
+            if (!audioInitialized) return;
+            let baseNote = map(x, 0, width, 200, 600);
+            tearSynth.triggerAttackRelease([
+                Tone.Frequency(baseNote).toNote(),
+                Tone.Frequency(baseNote * 0.75).toNote(),
+                Tone.Frequency(baseNote * 0.5).toNote()
+            ], "8n");
+        }
+        
+        function playParticleSound(particle, intensity) {
+            if (!audioInitialized || !soundEnabled) return;
+            let baseFreq = 261.63; // C4
+            let octaves = 0 + intensity * 4; // 0 to 4 octaves = C4 to C8!
+            let freq = baseFreq * Math.pow(2, octaves);
+            let xVariation = map(particle.x, 0, width, 0.95, 1.05);
+            freq *= xVariation;
+            let note = Tone.Frequency(freq).toNote();
+            particleSynth.triggerAttackRelease(note, "16n");
+        }
+        
+        // VISUAL SYSTEM
+        let gridSpacing = 80;
+        let particles = [];
+        let connections = [];
+        let currentParticle = null;
+        let lastParticleId = null;
+        let isDragging = false;
+        let prevMouseX = 0;
+        let prevMouseY = 0;
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            frameRate(60);
+            createGrid();
+            prevMouseX = mouseX;
+            prevMouseY = mouseY;
+        }
+
+        function createGrid() {
+            particles = [];
+            connections = [];
+            
+            let cols = floor(width / gridSpacing) + 1;
+            let rows = floor(height / gridSpacing) + 1;
+            let offsetX = (width - (cols - 1) * gridSpacing) / 2;
+            let offsetY = (height - (rows - 1) * gridSpacing) / 2;
+            
+            for (let i = 0; i < cols; i++) {
+                for (let j = 0; j < rows; j++) {
+                    let x = offsetX + i * gridSpacing;
+                    let y = offsetY + j * gridSpacing;
+                    let isEdge = (i === 0 || i === cols-1 || j === 0 || j === rows-1);
+                    
+                    particles.push({
+                        x: x, y: y,
+                        homeX: x, homeY: y,
+                        vx: 0, vy: 0,
+                        pinned: isEdge,
+                        i: i, j: j,
+                        size: 10,
+                        id: i + '_' + j
+                    });
+                }
+            }
+            
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    let p1 = particles[i];
+                    let p2 = particles[j];
+                    if ((abs(p1.i - p2.i) === 1 && p1.j === p2.j) || 
+                        (p1.i === p2.i && abs(p1.j - p2.j) === 1)) {
+                        connections.push({
+                            p1: p1, p2: p2,
+                            length: dist(p1.homeX, p1.homeY, p2.homeX, p2.homeY),
+                            active: true
+                        });
+                    }
+                }
+            }
+            
+            document.getElementById('gridInfo').textContent = gridSpacing + 'px';
+        }
+
+        function draw() {
+            background(10, 10, 10);
+            
+            let minDist = 999999;
+            let nearest = null;
+            for (let p of particles) {
+                let d = dist(mouseX, mouseY, p.x, p.y);
+                if (d < minDist) {
+                    minDist = d;
+                    nearest = p;
+                }
+            }
+            
+            let dx = mouseX - prevMouseX;
+            let dy = mouseY - prevMouseY;
+            let speed = sqrt(dx * dx + dy * dy);
+            let intensity = constrain(speed / 20, 0, 1);
+            
+            if (nearest && (!currentParticle || minDist < dist(mouseX, mouseY, currentParticle.x, currentParticle.y))) {
+                let oldParticle = currentParticle;
+                currentParticle = nearest;
+                
+                if (!oldParticle || oldParticle.id !== currentParticle.id) {
+                    playParticleSound(currentParticle, intensity);
+                }
+            }
+            
+            if (isDragging && (dx !== 0 || dy !== 0)) {
+                for (let c of connections) {
+                    if (!c.active) continue;
+                    let intersect = lineIntersect(
+                        prevMouseX, prevMouseY, mouseX, mouseY,
+                        c.p1.x, c.p1.y, c.p2.x, c.p2.y
+                    );
+                    if (intersect && intensity > 0.2) {
+                        c.active = false;
+                        let midX = (c.p1.x + c.p2.x) / 2;
+                        let midY = (c.p1.y + c.p2.y) / 2;
+                        playTearSound(intensity, midX, midY);
+                    }
+                }
+            }
+            
+            prevMouseX = mouseX;
+            prevMouseY = mouseY;
+            let hasMovement = (dx !== 0 || dy !== 0) || isDragging;
+            
+            for (let p of particles) {
+                if (p.pinned) {
+                    p.x = p.homeX;
+                    p.y = p.homeY;
+                    p.vx = 0;
+                    p.vy = 0;
+                    continue;
+                }
+                
+                p.vy += 0.05;
+                
+                if (p === currentParticle && !isDragging) {
+                    p.vx += (mouseX - p.x) * 0.3;
+                    p.vy += (mouseY - p.y) * 0.3;
+                    p.size = lerp(p.size, 18, 0.15);
+                } else {
+                    p.size = lerp(p.size, 10, 0.08);
+                    
+                    if (currentParticle) {
+                        let d = dist(p.x, p.y, currentParticle.x, currentParticle.y);
+                        let radius = gridSpacing * (3 + intensity * 4);
+                        if (d < radius && d > 0) {
+                            let force = (1 - d / radius) * (0.8 + intensity * 2);
+                            let angle = atan2(p.y - currentParticle.y, p.x - currentParticle.x);
+                            p.vx += cos(angle) * force * 1.2;
+                            p.vy += sin(angle) * force * 1.2;
+                        }
+                    }
+                }
+                
+                for (let other of particles) {
+                    if (other === p) continue;
+                    let d = dist(p.x, p.y, other.x, other.y);
+                    if (d < gridSpacing * 0.6 && d > 0) {
+                        let force = (gridSpacing * 0.6 - d) / (gridSpacing * 0.6);
+                        let angle = atan2(p.y - other.y, p.x - other.x);
+                        p.vx += cos(angle) * force * 0.3;
+                        p.vy += sin(angle) * force * 0.3;
+                    }
+                }
+                
+                p.vx += (noise(p.x * 0.01, frameCount * 0.01) - 0.5) * 0.05;
+                p.vy += (noise(p.y * 0.01, frameCount * 0.01 + 100) - 0.5) * 0.05;
+                
+                p.vx *= 0.94;
+                p.vy *= 0.94;
+                
+                let vel = sqrt(p.vx * p.vx + p.vy * p.vy);
+                if (vel > 8) {
+                    p.vx = (p.vx / vel) * 8;
+                    p.vy = (p.vy / vel) * 8;
+                }
+                
+                p.x += p.vx;
+                p.y += p.vy;
+                
+                if (p.x < 0) { p.x = 0; p.vx *= -0.5; }
+                if (p.x > width) { p.x = width; p.vx *= -0.5; }
+                if (p.y > height) { p.y = height; p.vy *= -0.5; }
+            }
+            
+            for (let iter = 0; iter < 5; iter++) {
+                for (let c of connections) {
+                    if (!c.active) continue;
+                    
+                    let dx = c.p2.x - c.p1.x;
+                    let dy = c.p2.y - c.p1.y;
+                    let d = sqrt(dx * dx + dy * dy);
+                    
+                    if (d > c.length * 3.0) {
+                        c.active = false;
+                        let midX = (c.p1.x + c.p2.x) / 2;
+                        let midY = (c.p1.y + c.p2.y) / 2;
+                        playTearSound(0.7, midX, midY);
+                        continue;
+                    }
+                    
+                    if (d < 0.1) continue;
+                    
+                    let diff = (d - c.length) / d;
+                    let ox = dx * diff * 0.5;
+                    let oy = dy * diff * 0.5;
+                    
+                    if (!c.p1.pinned) {
+                        c.p1.x += ox;
+                        c.p1.y += oy;
+                    }
+                    if (!c.p2.pinned) {
+                        c.p2.x -= ox;
+                        c.p2.y -= oy;
+                    }
+                }
+            }
+            
+            let totalStrain = 0;
+            let activeCount = 0;
+            for (let c of connections) {
+                if (c.active) {
+                    let d = dist(c.p1.x, c.p1.y, c.p2.x, c.p2.y);
+                    totalStrain += d / c.length;
+                    activeCount++;
+                }
+            }
+            let avgStrain = activeCount > 0 ? totalStrain / activeCount : 1;
+            
+            updateAudio(avgStrain, intensity, hasMovement);
+            
+            for (let c of connections) {
+                if (!c.active) continue;
+                
+                let d = dist(c.p1.x, c.p1.y, c.p2.x, c.p2.y);
+                let strain = d / c.length;
+                
+                let r = 150, g = 150, b = 150;
+                if (strain > 1.5) {
+                    r = 255;
+                    g = 100;
+                    b = 100;
+                }
+                
+                let alpha = map(d, 0, gridSpacing * 2, 80, 15);
+                let thickness = map(d, 0, gridSpacing * 2, 2.5, 0.5);
+                
+                stroke(r, g, b, alpha);
+                strokeWeight(thickness);
+                line(c.p1.x, c.p1.y, c.p2.x, c.p2.y);
+            }
+            
+            for (let p of particles) {
+                noStroke();
+                
+                // Current particle is RED
+                if (p === currentParticle) {
+                    fill(255, 50, 50);
+                } else {
+                    fill(255, 200, 200);
+                }
+                
+                circle(p.x, p.y, p.size);
+            }
+        }
+
+        function lineIntersect(x1, y1, x2, y2, x3, y3, x4, y4) {
+            let denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+            if (abs(denom) < 0.001) return false;
+            let t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
+            let u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
+            return (t >= 0 && t <= 1 && u >= 0 && u <= 1);
+        }
+
+        function keyPressed() {
+            if (key === '+' || key === '=') {
+                gridSpacing = constrain(gridSpacing - 10, 20, 150);
+                createGrid();
+                currentParticle = null;
+            } else if (key === '-' || key === '_') {
+                gridSpacing = constrain(gridSpacing + 10, 20, 150);
+                createGrid();
+                currentParticle = null;
+            } else if (key === 'r' || key === 'R') {
+                createGrid();
+                currentParticle = null;
+            } else if (key === 's' || key === 'S') {
+                soundEnabled = !soundEnabled;
+                document.getElementById('soundStatus').textContent = soundEnabled ? 'ON' : 'OFF';
+                document.getElementById('soundStatus').style.color = soundEnabled ? '#4a4' : '#a44';
+            }
+        }
+
+        function mousePressed() {
+            if (!audioInitialized) initAudio();
+            isDragging = true;
+        }
+        
+        function mouseMoved() {
+            if (!audioInitialized) initAudio();
+        }
+
+        function mouseReleased() {
+            isDragging = false;
+        }
+
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+            createGrid();
+            currentParticle = null;
+        }
+    </script>
+</body>
+</html>
