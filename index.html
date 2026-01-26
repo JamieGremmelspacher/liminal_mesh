@@ -52,19 +52,16 @@
             position: fixed;
             top: 20px;
             right: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
             z-index: 1000;
         }
 
         .control-btn {
-            width: 50px;
-            height: 50px;
-            border: 1px solid #444;
-            background: rgba(15, 15, 15, 0.8);
-            color: #888;
-            font-size: 20px;
+            width: 45px;
+            height: 45px;
+            border: 1px solid #333;
+            background: rgba(10, 10, 10, 0.7);
+            color: #666;
+            font-size: 18px;
             font-family: 'Courier New', monospace;
             border-radius: 50%;
             cursor: pointer;
@@ -78,7 +75,7 @@
         }
 
         .control-btn:active {
-            background: rgba(30, 30, 30, 0.9);
+            background: rgba(20, 20, 20, 0.9);
             transform: scale(0.9);
         }
 
@@ -87,39 +84,53 @@
             color: #4a4;
         }
 
-        #startBtn {
-            width: 60px;
-            height: 60px;
-            font-size: 11px;
-            border-color: #4a4;
-            color: #4a4;
-        }
-
-        #startBtn.hidden {
-            display: none;
-        }
-
         /* Hide mobile controls on desktop */
         @media (min-width: 768px) {
             #mobileControls {
                 display: none;
             }
         }
+
+        /* Mobile-specific info text */
+        .desktop-only {
+            display: inline;
+        }
+        
+        .mobile-only {
+            display: none;
+        }
+
+        @media (max-width: 767px) {
+            .desktop-only {
+                display: none;
+            }
+            .mobile-only {
+                display: inline;
+            }
+        }
     </style>
 </head>
 <body>
     <div id="info">
-        <span class="key">+</span> FEINER<br>
-        <span class="key">-</span> GRÖBER<br>
-        <span class="key">DRAG</span> EINREISSEN<br>
-        <span class="key">S</span> SOUND <span id="soundStatus">ON</span><br>
-        <span class="key">R</span> RESET<br>
-        <span class="key" id="gridInfo">80px</span>
+        <span class="desktop-only">
+            <span class="key">+</span> FEINER<br>
+            <span class="key">-</span> GRÖBER<br>
+            <span class="key">DRAG</span> EINREISSEN<br>
+            <span class="key">S</span> SOUND <span id="soundStatus">ON</span><br>
+            <span class="key">R</span> RESET<br>
+            <span class="key" id="gridInfo">80px</span>
+        </span>
+        <span class="mobile-only">
+            <span class="key">🤏</span> PINCH DICHTE<br>
+            <span class="key">👆</span> HOVERN<br>
+            <span class="key">✌️</span> REISSEN<br>
+            <span class="key">👆👆👆</span> RESET<br>
+            <span class="key" id="gridInfoMobile">80px</span>
+        </span>
     </div>
 
-    <!-- MOBILE CONTROLS - MINIMAL -->
+    <!-- MOBILE CONTROLS - ONLY SOUND BUTTON -->
     <div id="mobileControls">
-        <button id="startBtn" class="control-btn">START</button>
         <button id="soundBtn" class="control-btn active" title="Sound">♪</button>
     </div>
 
@@ -212,15 +223,6 @@
         }
 
         function setupMobileControls() {
-            // Start button
-            const startBtn = document.getElementById('startBtn');
-            if (startBtn) {
-                startBtn.addEventListener('click', () => {
-                    initAudio();
-                    startBtn.classList.add('hidden');
-                });
-            }
-
             // Sound toggle button
             const soundBtn = document.getElementById('soundBtn');
             if (soundBtn) {
@@ -276,6 +278,8 @@
             }
             
             document.getElementById('gridInfo').textContent = gridSpacing + 'px';
+            const mobileInfo = document.getElementById('gridInfoMobile');
+            if (mobileInfo) mobileInfo.textContent = gridSpacing + 'px';
         }
 
         function draw() {
@@ -509,6 +513,11 @@
 
         // MOBILE TOUCH SUPPORT WITH GESTURES
         function touchStarted() {
+            // Auto-init audio on first touch (iOS fix)
+            if (!audioInitialized) {
+                initAudio();
+            }
+
             // Triple-tap detection
             let now = millis();
             if (now - lastTapTime < 300) {
@@ -534,19 +543,21 @@
             if (touches.length === 2) {
                 let d = dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
                 lastTouchDist = d;
+                // 2 fingers = tearing mode
+                isDragging = true;
                 return false;
             }
             
-            // Single touch - dragging
+            // Single touch - ONLY HOVERING (no tearing!)
             if (touches.length === 1) {
-                isDragging = true;
+                isDragging = false; // Important: 1 finger does NOT tear!
             }
             
             return false; // Prevent default
         }
         
         function touchMoved() {
-            // Pinch-to-zoom gesture
+            // Pinch-to-zoom gesture (2 fingers)
             if (touches.length === 2) {
                 let d = dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
                 
@@ -560,11 +571,21 @@
                         createGrid();
                         currentParticle = null;
                         document.getElementById('gridInfo').textContent = gridSpacing.toFixed(0) + 'px';
+                        const mobileInfo = document.getElementById('gridInfoMobile');
+                        if (mobileInfo) mobileInfo.textContent = gridSpacing.toFixed(0) + 'px';
                     }
                 }
                 
                 lastTouchDist = d;
+                
+                // 2 fingers = can tear
+                isDragging = true;
                 return false;
+            }
+            
+            // 1 finger = only hover, no tearing
+            if (touches.length === 1) {
+                isDragging = false;
             }
             
             return false; // Prevent scrolling
