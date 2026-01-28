@@ -165,6 +165,24 @@
             color: #ff4444;
         }
 
+        /* Pulse animation for sound button on mobile (before audio init) */
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                border-color: #ff4444;
+            }
+            50% {
+                transform: scale(1.1);
+                border-color: #ff6666;
+            }
+        }
+
+        #soundButton.needs-init {
+            animation: pulse 2s ease-in-out infinite;
+            border-color: #ff4444;
+            color: #ff4444;
+        }
+
         @media (min-width: 768px) {
             #soundButton {
                 display: none;
@@ -195,6 +213,7 @@
             Grid: <span class="key" id="gridInfo">80px</span>
         </div>
         <div class="mobile-only">
+            <span class="key">♪</span> &nbsp;&nbsp; Antippen für Sound<br>
             <span class="key">🤏</span> &nbsp;&nbsp; Pinch für Dichte<br>
             <span class="key">👆</span> &nbsp;&nbsp; 1 Finger hovern<br>
             <span class="key">✌️</span> &nbsp;&nbsp; 2 Finger reißen<br>
@@ -232,23 +251,75 @@
                 });
             }
 
-            // Sound button toggle
+            // Sound button toggle AND audio unlock
             const soundButton = document.getElementById('soundButton');
             if (soundButton) {
-                const handleSoundToggle = function(e) {
+                let isProcessing = false; // Prevent double-tap issues
+                
+                const handleSoundToggle = async function(e) {
+                    if (isProcessing) {
+                        console.log("⚠️ Already processing, ignoring duplicate event");
+                        return;
+                    }
+                    
                     e.preventDefault();
                     e.stopPropagation();
+                    isProcessing = true;
                     
-                    soundEnabled = !soundEnabled;
-                    soundButton.classList.toggle('active', soundEnabled);
-                    console.log("🔊 Sound toggled:", soundEnabled);
+                    console.log("🔊 Sound button tapped/clicked");
+                    
+                    // Initialize audio on first interaction (CRITICAL for iOS!)
+                    if (!audioInitialized) {
+                        console.log("🎵 First sound button tap - unlocking audio...");
+                        
+                        try {
+                            // Direct Tone.start() call from button event
+                            await Tone.start();
+                            console.log("✅ Tone.start() from button - state:", Tone.context.state);
+                            
+                            // Initialize our audio system
+                            await initAudio();
+                            console.log("🎉 Audio unlocked and initialized from sound button!");
+                            
+                            // Remove pulse animation if present
+                            soundButton.classList.remove('needs-init');
+                            
+                            // Keep button active (sound is on)
+                            soundEnabled = true;
+                            soundButton.classList.add('active');
+                            
+                            // Visual feedback - quick scale animation
+                            soundButton.style.transition = 'transform 0.2s';
+                            soundButton.style.transform = 'scale(1.2)';
+                            setTimeout(() => {
+                                soundButton.style.transform = 'scale(1)';
+                            }, 200);
+                            
+                        } catch (err) {
+                            console.error("❌ Sound button audio init failed:", err);
+                            console.error("Error details:", err.message, err.stack);
+                            soundEnabled = false;
+                            soundButton.classList.remove('active');
+                            alert("Audio konnte nicht gestartet werden. Bitte nochmal versuchen.");
+                        }
+                    } else {
+                        // Toggle sound if already initialized
+                        soundEnabled = !soundEnabled;
+                        soundButton.classList.toggle('active', soundEnabled);
+                        console.log("🔊 Sound toggled:", soundEnabled);
+                    }
+                    
+                    setTimeout(() => { isProcessing = false; }, 500);
                 };
                 
-                soundButton.addEventListener('click', handleSoundToggle);
+                // Use touchend for mobile, click for desktop
                 soundButton.addEventListener('touchend', handleSoundToggle);
+                soundButton.addEventListener('click', handleSoundToggle);
+                
+                console.log("✅ Sound button ready");
             }
             
-            console.log("✅ Buttons initialized");
+            console.log("✅ All buttons initialized");
         });
         
         // AUDIO SYSTEM
@@ -371,6 +442,16 @@
             prevMouseY = mouseY;
             
             console.log("✅ p5.js setup complete");
+            
+            // Add pulse animation to sound button on mobile if audio not init
+            const isMobile = window.innerWidth < 768;
+            if (isMobile) {
+                const soundButton = document.getElementById('soundButton');
+                if (soundButton && !audioInitialized) {
+                    soundButton.classList.add('needs-init');
+                    console.log("📱 Mobile detected - sound button pulsing");
+                }
+            }
         }
 
         function createGrid() {
@@ -664,12 +745,6 @@
         // MOBILE TOUCH SUPPORT WITH GESTURES
         async function touchStarted() {
             console.log("👆 Touch detected, fingers:", touches.length);
-            
-            // Auto-init audio on first touch (iOS fix) - with await!
-            if (!audioInitialized) {
-                console.log("🎵 First touch - initializing audio...");
-                await initAudio();
-            }
 
             // Triple-tap detection
             let now = millis();
