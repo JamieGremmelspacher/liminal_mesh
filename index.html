@@ -17,10 +17,10 @@
             background: #050808;
             overflow: hidden;
             cursor: none;
-            font-family: 'Courier New', monospace;
-            touch-action: none; /* Prevent all touch gestures */
-            -webkit-touch-callout: none; /* Prevent callout on iOS */
-            -webkit-user-select: none; /* Prevent text selection */
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
             user-select: none;
         }
         
@@ -28,72 +28,92 @@
             display: block;
         }
 
-        #info {
+        /* INFO BUTTON */
+        #infoButton {
             position: fixed;
             top: 20px;
             left: 20px;
-            color: #444;
-            font-size: 11px;
-            letter-spacing: 1px;
-            line-height: 1.8;
-            pointer-events: none;
-        }
-
-        .key {
-            color: #ff4444;
-        }
-        
-        #soundStatus {
-            color: #4a4;
-        }
-
-        /* MOBILE CONTROLS - MINIMAL */
-        #mobileControls {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
-        }
-
-        .control-btn {
-            width: 45px;
-            height: 45px;
-            border: 1px solid #333;
-            background: rgba(10, 10, 10, 0.7);
-            color: #666;
-            font-size: 18px;
-            font-family: 'Courier New', monospace;
+            width: 40px;
+            height: 40px;
+            border: 1px solid #444;
+            background: rgba(15, 15, 15, 0.7);
+            color: #888;
+            font-size: 20px;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             border-radius: 50%;
             cursor: pointer;
             pointer-events: auto;
-            transition: all 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
+            z-index: 1001;
+            transition: all 0.2s;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
 
-        .control-btn:active {
-            background: rgba(20, 20, 20, 0.9);
-            transform: scale(0.9);
+        #infoButton:hover {
+            border-color: #888;
+            color: #ccc;
         }
 
-        .control-btn.active {
-            border-color: #4a4;
-            color: #4a4;
+        #infoButton:active {
+            transform: scale(0.95);
         }
 
-        /* Hide mobile controls on desktop */
-        @media (min-width: 768px) {
-            #mobileControls {
-                display: none;
+        @media (max-width: 767px) {
+            #infoButton {
+                width: 50px;
+                height: 50px;
+                font-size: 24px;
             }
         }
 
-        /* Mobile-specific info text */
+        /* INFO PANEL */
+        #infoPanel {
+            position: fixed;
+            top: 70px;
+            left: 20px;
+            background: rgba(15, 15, 15, 0.95);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
+            z-index: 1000;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #ccc;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
+        }
+
+        #infoPanel.visible {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        #infoPanel .key {
+            color: #ff4444;
+            font-weight: 500;
+        }
+
+        #infoPanel br {
+            line-height: 1.8;
+        }
+
+        @media (max-width: 767px) {
+            #infoPanel {
+                top: 80px;
+            }
+        }
+
         .desktop-only {
-            display: inline;
+            display: block;
         }
         
         .mobile-only {
@@ -105,69 +125,135 @@
                 display: none;
             }
             .mobile-only {
-                display: inline;
+                display: block;
+            }
+        }
+
+        /* SOUND BUTTON (MOBILE) */
+        #soundButton {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 45px;
+            height: 45px;
+            border: 1px solid #333;
+            background: rgba(10, 10, 10, 0.7);
+            color: #666;
+            font-size: 18px;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            border-radius: 50%;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            z-index: 1001;
+        }
+
+        #soundButton:active {
+            background: rgba(20, 20, 20, 0.9);
+            transform: scale(0.9);
+        }
+
+        #soundButton.active {
+            border-color: #4a4;
+            color: #4a4;
+        }
+
+        @media (min-width: 768px) {
+            #soundButton {
+                display: none;
+            }
+        }
+
+        @media (max-width: 767px) {
+            #soundButton {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
             }
         }
     </style>
 </head>
 <body>
-    <div id="info">
-        <span class="desktop-only">
-            <span class="key">+</span> FEINER<br>
-            <span class="key">-</span> GRÖBER<br>
-            <span class="key">DRAG</span> EINREISSEN<br>
-            <span class="key">S</span> SOUND <span id="soundStatus">ON</span><br>
-            <span class="key">R</span> RESET<br>
-            <span class="key" id="gridInfo">80px</span>
-        </span>
-        <span class="mobile-only">
-            <span class="key">🤏</span> PINCH DICHTE<br>
-            <span class="key">👆</span> HOVERN<br>
-            <span class="key">✌️</span> REISSEN<br>
-            <span class="key">👆👆👆</span> RESET<br>
-            <span class="key" id="gridInfoMobile">80px</span>
-        </span>
+    <!-- INFO BUTTON -->
+    <button id="infoButton" aria-label="Info">ⓘ</button>
+
+    <!-- INFO PANEL (hidden by default) -->
+    <div id="infoPanel">
+        <div class="desktop-only">
+            <span class="key">+</span> / <span class="key">−</span> &nbsp;&nbsp; Grid Dichte<br>
+            <span class="key">DRAG</span> &nbsp;&nbsp; Verbindungen reißen<br>
+            <span class="key">S</span> &nbsp;&nbsp; Sound toggle<br>
+            <span class="key">R</span> &nbsp;&nbsp; Reset<br>
+            <br>
+            Grid: <span class="key" id="gridInfo">80px</span>
+        </div>
+        <div class="mobile-only">
+            <span class="key">🤏</span> &nbsp;&nbsp; Pinch für Dichte<br>
+            <span class="key">👆</span> &nbsp;&nbsp; 1 Finger hovern<br>
+            <span class="key">✌️</span> &nbsp;&nbsp; 2 Finger reißen<br>
+            <span class="key">👆👆👆</span> &nbsp; 3× Tap reset<br>
+            <br>
+            Grid: <span class="key" id="gridInfoMobile">80px</span>
+        </div>
     </div>
 
-    <!-- MOBILE CONTROLS - ONLY SOUND BUTTON -->
-    <div id="mobileControls">
-        <button id="soundBtn" class="control-btn active" title="Sound">♪</button>
-    </div>
+    <!-- SOUND BUTTON (MOBILE ONLY) -->
+    <button id="soundButton" class="active" aria-label="Sound">♪</button>
 
     <script>
         // AUDIO SYSTEM
         let audioInitialized = false;
         let soundEnabled = true;
         let tearSynth, particleSynth, reverb;
+        let audioUnlocked = false;
         
-        function initAudio() {
+        async function initAudio() {
             if (audioInitialized) return;
             
-            Tone.start().then(() => {
-                console.log("Audio started!");
+            try {
+                console.log("🎵 Attempting audio init...");
+                console.log("Audio context state before:", Tone.context.state);
                 
+                await Tone.start();
+                
+                console.log("Audio context state after:", Tone.context.state);
+                console.log("✅ Tone.start() successful");
+                
+                // Create reverb first
                 reverb = new Tone.Reverb({ decay: 4, wet: 0.4 }).toDestination();
+                await reverb.ready;
+                console.log("✅ Reverb created");
                 
+                // Create synths
                 tearSynth = new Tone.PolySynth(Tone.Synth, {
                     oscillator: { type: "sine" },
                     envelope: { attack: 0.01, decay: 0.3, sustain: 0, release: 0.4 }
                 }).connect(reverb);
                 tearSynth.volume.value = -6;
+                console.log("✅ Tear synth created");
                 
                 particleSynth = new Tone.Synth({
                     oscillator: { type: "sine" },
                     envelope: { attack: 0.005, decay: 0.2, sustain: 0, release: 0.3 }
                 }).connect(reverb);
                 particleSynth.volume.value = -8;
+                console.log("✅ Particle synth created");
                 
                 audioInitialized = true;
-                console.log("Audio initialized!");
+                audioUnlocked = true;
                 
-                // Play a silent sound to "unlock" audio on iOS
+                // Test sound to "unlock" iOS audio
                 particleSynth.triggerAttackRelease("C1", "32n");
-            }).catch(err => {
-                console.error("Audio initialization failed:", err);
-            });
+                console.log("🔊 Audio fully initialized and unlocked!");
+                
+            } catch (err) {
+                console.error("❌ Audio initialization failed:", err);
+            }
         }
         
         function updateAudio(strain, intensity, hasMovement) {
@@ -185,14 +271,35 @@
         }
         
         function playParticleSound(particle, intensity) {
-            if (!audioInitialized || !soundEnabled) return;
-            let baseFreq = 261.63; // C4
-            let octaves = 0 + intensity * 4; // 0 to 4 octaves = C4 to C8!
-            let freq = baseFreq * Math.pow(2, octaves);
-            let xVariation = map(particle.x, 0, width, 0.95, 1.05);
-            freq *= xVariation;
-            let note = Tone.Frequency(freq).toNote();
-            particleSynth.triggerAttackRelease(note, "16n");
+            if (!audioInitialized || !soundEnabled) {
+                return;
+            }
+            
+            if (!particleSynth) {
+                console.error("❌ Particle synth not initialized!");
+                return;
+            }
+            
+            try {
+                // Ensure minimum intensity so slow movements still make sound
+                let actualIntensity = max(intensity, 0.2);
+                
+                let baseFreq = 261.63; // C4
+                let octaves = 0 + actualIntensity * 4; // 0 to 4 octaves = C4 to C8!
+                let freq = baseFreq * Math.pow(2, octaves);
+                let xVariation = map(particle.x, 0, width, 0.95, 1.05);
+                freq *= xVariation;
+                let note = Tone.Frequency(freq).toNote();
+                
+                particleSynth.triggerAttackRelease(note, "16n");
+                
+                // Only log occasionally to avoid spam
+                if (frameCount % 30 === 0) {
+                    console.log("🔊 Playing particle sound:", note, "intensity:", actualIntensity.toFixed(2));
+                }
+            } catch (err) {
+                console.error("❌ Error playing particle sound:", err);
+            }
         }
         
         // VISUAL SYSTEM
@@ -218,19 +325,31 @@
             prevMouseX = mouseX;
             prevMouseY = mouseY;
             
-            // Setup mobile button handlers
-            setupMobileControls();
+            // Setup UI button handlers
+            setupUIButtons();
         }
 
-        function setupMobileControls() {
-            // Sound toggle button
-            const soundBtn = document.getElementById('soundBtn');
-            if (soundBtn) {
-                soundBtn.addEventListener('click', () => {
+        function setupUIButtons() {
+            // Info button toggle
+            const infoButton = document.getElementById('infoButton');
+            const infoPanel = document.getElementById('infoPanel');
+            
+            if (infoButton && infoPanel) {
+                infoButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    infoPanel.classList.toggle('visible');
+                    console.log("ℹ️ Info panel toggled");
+                });
+            }
+
+            // Sound button toggle
+            const soundButton = document.getElementById('soundButton');
+            if (soundButton) {
+                soundButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     soundEnabled = !soundEnabled;
-                    soundBtn.classList.toggle('active', soundEnabled);
-                    document.getElementById('soundStatus').textContent = soundEnabled ? 'ON' : 'OFF';
-                    document.getElementById('soundStatus').style.color = soundEnabled ? '#4a4' : '#a44';
+                    soundButton.classList.toggle('active', soundEnabled);
+                    console.log("🔊 Sound toggled:", soundEnabled);
                 });
             }
         }
@@ -304,8 +423,14 @@
                 let oldParticle = currentParticle;
                 currentParticle = nearest;
                 
+                // Play sound when particle changes OR when moving (not stationary)
                 if (!oldParticle || oldParticle.id !== currentParticle.id) {
                     playParticleSound(currentParticle, intensity);
+                } else if (speed > 1) {
+                    // Throttle: only play every few frames when moving over same particle
+                    if (frameCount % 3 === 0) {
+                        playParticleSound(currentParticle, intensity);
+                    }
                 }
             }
             
@@ -499,12 +624,18 @@
         }
 
         function mousePressed() {
-            if (!audioInitialized) initAudio();
+            if (!audioInitialized) {
+                console.log("🖱️ Mouse pressed - initializing audio...");
+                initAudio();
+            }
             isDragging = true;
         }
         
         function mouseMoved() {
-            if (!audioInitialized) initAudio();
+            if (!audioInitialized) {
+                console.log("🖱️ Mouse moved - initializing audio...");
+                initAudio();
+            }
         }
 
         function mouseReleased() {
@@ -513,8 +644,11 @@
 
         // MOBILE TOUCH SUPPORT WITH GESTURES
         function touchStarted() {
+            console.log("👆 Touch detected, fingers:", touches.length);
+            
             // Auto-init audio on first touch (iOS fix)
             if (!audioInitialized) {
+                console.log("🎵 First touch - initializing audio...");
                 initAudio();
             }
 
@@ -527,7 +661,7 @@
                     createGrid();
                     currentParticle = null;
                     tapCount = 0;
-                    console.log("Triple tap - Reset!");
+                    console.log("👆👆👆 Triple tap - Reset!");
                     return false;
                 }
             } else {
@@ -545,12 +679,14 @@
                 lastTouchDist = d;
                 // 2 fingers = tearing mode
                 isDragging = true;
+                console.log("✌️ Two fingers - tear mode enabled");
                 return false;
             }
             
             // Single touch - ONLY HOVERING (no tearing!)
             if (touches.length === 1) {
                 isDragging = false; // Important: 1 finger does NOT tear!
+                console.log("👆 One finger - hover mode");
             }
             
             return false; // Prevent default
