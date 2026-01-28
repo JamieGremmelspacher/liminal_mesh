@@ -538,6 +538,8 @@
                     if (frameCount % throttle === 0) {
                         if (isMobile && frameCount % 10 === 0) {
                             console.log("📱 Mobile particle sound, speed:", speed.toFixed(2), "intensity:", intensity.toFixed(2));
+                        } else if (!isMobile && frameCount % 20 === 0) {
+                            console.log("🖥️ Desktop particle sound, speed:", speed.toFixed(2), "intensity:", intensity.toFixed(2));
                         }
                         playParticleSound(currentParticle, intensity);
                     }
@@ -733,18 +735,18 @@
             }
         }
 
-        async function mousePressed() {
+        function mousePressed() {
             if (!audioInitialized) {
                 console.log("🖱️ Mouse pressed - initializing audio...");
-                await initAudio();
+                initAudio(); // Call without await - let it run in background
             }
             isDragging = true;
         }
         
-        async function mouseMoved() {
+        function mouseMoved() {
             if (!audioInitialized) {
                 console.log("🖱️ Mouse moved - initializing audio...");
-                await initAudio();
+                initAudio(); // Call without await - let it run in background
             }
         }
 
