@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LABIL–STABIL [AUDIO]</title>
+    <title>LABIL–STABIL</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
     <style>
@@ -26,6 +26,8 @@
         canvas {
             display: block;
             touch-action: none;
+            position: relative;
+            z-index: 1;
         }
 
         /* INFO BUTTON */
@@ -205,19 +207,18 @@
     <!-- INFO PANEL (hidden by default) -->
     <div id="infoPanel">
         <div class="desktop-only">
-            <span class="key">+</span> / <span class="key">−</span> &nbsp;&nbsp; Grid Dichte<br>
-            <span class="key">DRAG</span> &nbsp;&nbsp; Verbindungen reißen<br>
+            <span class="key">+</span> / <span class="key">−</span> &nbsp;&nbsp; Grid density<br>
+            <span class="key">DRAG</span> &nbsp;&nbsp; Tear connections<br>
             <span class="key">S</span> &nbsp;&nbsp; Sound toggle<br>
             <span class="key">R</span> &nbsp;&nbsp; Reset<br>
             <br>
             Grid: <span class="key" id="gridInfo">80px</span>
         </div>
         <div class="mobile-only">
-            <span class="key">♪</span> &nbsp;&nbsp; Antippen für Sound<br>
-            <span class="key">🤏</span> &nbsp;&nbsp; Pinch für Dichte<br>
-            <span class="key">👆</span> &nbsp;&nbsp; 1 Finger hovern<br>
-            <span class="key">✌️</span> &nbsp;&nbsp; 2 Finger reißen<br>
-            <span class="key">👆👆👆</span> &nbsp; 3× Tap reset<br>
+            <span class="key">♪</span> &nbsp;&nbsp; Tap for sound<br>
+            <span class="key">🤏</span> &nbsp;&nbsp; Pinch for density<br>
+            <span class="key">👆</span> &nbsp;&nbsp; 1 finger hover<br>
+            <span class="key">✌️</span> &nbsp;&nbsp; 2 fingers tear<br>
             <br>
             Grid: <span class="key" id="gridInfoMobile">80px</span>
         </div>
@@ -225,6 +226,27 @@
 
     <!-- SOUND BUTTON (MOBILE ONLY) -->
     <button id="soundButton" class="active" aria-label="Sound">♪</button>
+
+    <!-- MOBILE AUDIO HINT - MINIMALIST -->
+    <div id="mobileAudioHint" style="
+        position: fixed;
+        top: 20px;
+        right: 80px;
+        background: rgba(0, 0, 0, 0.85);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-family: 'Helvetica Neue', sans-serif;
+        font-size: 12px;
+        font-weight: 400;
+        text-align: center;
+        z-index: 9998;
+        pointer-events: none;
+        display: none;
+        white-space: nowrap;
+    ">
+        → Tap ♪ for sound
+    </div>
 
     <script>
         // SETUP UI BUTTONS IMMEDIATELY (before p5.js)
@@ -284,6 +306,13 @@
                             // Remove pulse animation if present
                             soundButton.classList.remove('needs-init');
                             
+                            // Hide mobile audio hint
+                            const audioHint = document.getElementById('mobileAudioHint');
+                            if (audioHint) {
+                                audioHint.style.display = 'none';
+                                console.log("📱 Hiding mobile audio hint");
+                            }
+                            
                             // Keep button active (sound is on)
                             soundEnabled = true;
                             soundButton.classList.add('active');
@@ -300,7 +329,7 @@
                             console.error("Error details:", err.message, err.stack);
                             soundEnabled = false;
                             soundButton.classList.remove('active');
-                            alert("Audio konnte nicht gestartet werden. Bitte nochmal versuchen.");
+                            alert("Audio could not start. Please try again.");
                         }
                     } else {
                         // Toggle sound if already initialized
@@ -444,13 +473,21 @@
             
             console.log("✅ p5.js setup complete");
             
-            // Add pulse animation to sound button on mobile if audio not init
+            // Show audio hint on mobile if audio not init
             const isMobile = window.innerWidth < 768;
             if (isMobile) {
                 const soundButton = document.getElementById('soundButton');
+                const audioHint = document.getElementById('mobileAudioHint');
+                
                 if (soundButton && !audioInitialized) {
                     soundButton.classList.add('needs-init');
                     console.log("📱 Mobile detected - sound button pulsing");
+                    
+                    // Show prominent hint
+                    if (audioHint) {
+                        audioHint.style.display = 'block';
+                        console.log("📱 Showing mobile audio hint");
+                    }
                 }
             }
         }
@@ -725,20 +762,30 @@
         }
 
         async function mousePressed() {
-            if (!audioInitialized) {
-                console.log("🖱️ Mouse pressed - initializing audio...");
+            // MOBILE: Don't init audio here - use sound button instead!
+            const isMobile = window.innerWidth < 768;
+            
+            if (!audioInitialized && !isMobile) {
+                console.log("🖥️ Desktop mouse pressed - initializing audio...");
                 await initAudio();
                 console.log("✅ Desktop audio ready after mousePressed");
+            } else if (!audioInitialized && isMobile) {
+                console.log("📱 Mobile detected - skipping audio init (use sound button!)");
             }
+            
             isDragging = true;
         }
         
         async function mouseMoved() {
-            if (!audioInitialized) {
-                console.log("🖱️ Mouse moved - initializing audio...");
+            // MOBILE: Don't init audio here - use sound button instead!
+            const isMobile = window.innerWidth < 768;
+            
+            if (!audioInitialized && !isMobile) {
+                console.log("🖥️ Desktop mouse moved - initializing audio...");
                 await initAudio();
                 console.log("✅ Desktop audio ready after mouseMoved");
             }
+            // No logging on mobile to avoid spam
         }
 
         function mouseReleased() {
