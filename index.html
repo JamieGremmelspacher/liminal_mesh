@@ -368,8 +368,8 @@
                     oscillator: { type: "sine" },
                     envelope: { attack: 0.005, decay: 0.2, sustain: 0, release: 0.3 }
                 }).connect(reverb);
-                particleSynth.volume.value = -6; // Good balance for desktop
-                console.log("✅ Particle synth created (volume: -6dB)");
+                particleSynth.volume.value = -4; // Increased for better audibility
+                console.log("✅ Particle synth created (volume: -4dB)");
                 
                 audioInitialized = true;
                 audioUnlocked = true;
@@ -408,22 +408,22 @@
             }
             
             try {
-                // Ensure minimum intensity for audibility
-                let actualIntensity = max(intensity, 0.2);
+                // Ensure minimum intensity so slow movements still make sound
+                let actualIntensity = max(intensity, 0.15); // Lowered min for better response
                 
                 let baseFreq = 261.63; // C4
-                let octaves = 0 + actualIntensity * 4; // 0 to 4 octaves = C4 to C8
+                let octaves = 0 + actualIntensity * 4; // 0 to 4 octaves = C4 to C8!
                 let freq = baseFreq * Math.pow(2, octaves);
                 let xVariation = map(particle.x, 0, width, 0.95, 1.05);
                 freq *= xVariation;
                 let note = Tone.Frequency(freq).toNote();
                 
-                // 16n duration (sixteenth note)
-                particleSynth.triggerAttackRelease(note, "16n");
+                // Longer duration for better audibility (8n = eighth note)
+                particleSynth.triggerAttackRelease(note, "8n");
                 
-                // Occasional logging
+                // Only log occasionally to avoid spam
                 if (frameCount % 30 === 0) {
-                    console.log("🔊 Playing particle sound:", note);
+                    console.log("🔊 Playing particle sound:", note, "intensity:", actualIntensity.toFixed(2));
                 }
             } catch (err) {
                 console.error("❌ Error playing particle sound:", err);
@@ -744,28 +744,18 @@
         }
 
         function mousePressed() {
-            // MOBILE: Don't init audio here - use sound button instead!
-            const isMobile = window.innerWidth < 768;
-            
-            if (!audioInitialized && !isMobile) {
-                console.log("🖥️ Desktop mouse pressed - initializing audio...");
-                initAudio(); // Non-async call - let it run in background
-            } else if (!audioInitialized && isMobile) {
-                console.log("📱 Mobile detected - skipping audio init (use sound button!)");
+            if (!audioInitialized) {
+                console.log("🖱️ Mouse pressed - initializing audio...");
+                initAudio();
             }
-            
             isDragging = true;
         }
         
         function mouseMoved() {
-            // MOBILE: Don't init audio here - use sound button instead!
-            const isMobile = window.innerWidth < 768;
-            
-            if (!audioInitialized && !isMobile) {
-                console.log("🖥️ Desktop mouse moved - initializing audio...");
-                initAudio(); // Non-async call - let it run in background
+            if (!audioInitialized) {
+                console.log("🖱️ Mouse moved - initializing audio...");
+                initAudio();
             }
-            // No logging on mobile to avoid spam
         }
 
         function mouseReleased() {
