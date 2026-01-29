@@ -276,23 +276,15 @@
             // Sound button toggle AND audio unlock
             const soundButton = document.getElementById('soundButton');
             if (soundButton) {
-                let isProcessing = false; // Prevent double-tap issues
-                
                 const handleSoundToggle = async function(e) {
-                    if (isProcessing) {
-                        console.log("⚠️ Already processing, ignoring duplicate event");
-                        return;
-                    }
-                    
                     e.preventDefault();
                     e.stopPropagation();
-                    isProcessing = true;
                     
-                    console.log("🔊 Sound button event fired! Type:", e.type);
+                    console.log("🔊 Sound button clicked/tapped, type:", e.type);
                     
                     // Initialize audio on first interaction (CRITICAL for iOS!)
                     if (!audioInitialized) {
-                        console.log("🎵 First sound button interaction - unlocking audio...");
+                        console.log("🎵 First sound button tap - unlocking audio...");
                         
                         try {
                             // Direct Tone.start() call from button event
@@ -317,13 +309,6 @@
                             soundEnabled = true;
                             soundButton.classList.add('active');
                             
-                            // Visual feedback - quick scale animation
-                            soundButton.style.transition = 'transform 0.2s';
-                            soundButton.style.transform = 'scale(1.2)';
-                            setTimeout(() => {
-                                soundButton.style.transform = 'scale(1)';
-                            }, 200);
-                            
                         } catch (err) {
                             console.error("❌ Sound button audio init failed:", err);
                             console.error("Error details:", err.message, err.stack);
@@ -337,22 +322,10 @@
                         soundButton.classList.toggle('active', soundEnabled);
                         console.log("🔊 Sound toggled:", soundEnabled);
                     }
-                    
-                    setTimeout(() => { isProcessing = false; }, 500);
                 };
                 
-                // CRITICAL: Use ONLY ONE event type per device!
-                // Touch devices: use touchstart (more reliable than touchend)
-                // Desktop: use click
-                const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-                
-                if (isTouchDevice) {
-                    console.log("🔧 Touch device detected - using touchstart event");
-                    soundButton.addEventListener('touchstart', handleSoundToggle, { passive: false });
-                } else {
-                    console.log("🔧 Desktop detected - using click event");
-                    soundButton.addEventListener('click', handleSoundToggle);
-                }
+                // Simple: Just use click event - works on both desktop and mobile
+                soundButton.addEventListener('click', handleSoundToggle);
                 
                 console.log("✅ Sound button ready");
             }
@@ -770,14 +743,13 @@
             }
         }
 
-        async function mousePressed() {
+        function mousePressed() {
             // MOBILE: Don't init audio here - use sound button instead!
             const isMobile = window.innerWidth < 768;
             
             if (!audioInitialized && !isMobile) {
                 console.log("🖥️ Desktop mouse pressed - initializing audio...");
-                await initAudio();
-                console.log("✅ Desktop audio ready after mousePressed");
+                initAudio(); // Non-async call - let it run in background
             } else if (!audioInitialized && isMobile) {
                 console.log("📱 Mobile detected - skipping audio init (use sound button!)");
             }
@@ -785,14 +757,13 @@
             isDragging = true;
         }
         
-        async function mouseMoved() {
+        function mouseMoved() {
             // MOBILE: Don't init audio here - use sound button instead!
             const isMobile = window.innerWidth < 768;
             
             if (!audioInitialized && !isMobile) {
                 console.log("🖥️ Desktop mouse moved - initializing audio...");
-                await initAudio();
-                console.log("✅ Desktop audio ready after mouseMoved");
+                initAudio(); // Non-async call - let it run in background
             }
             // No logging on mobile to avoid spam
         }
