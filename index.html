@@ -193,9 +193,9 @@
 
         @media (max-width: 767px) {
             #soundButton {
-                width: 50px;
-                height: 50px;
-                font-size: 20px;
+                width: 60px;
+                height: 60px;
+                font-size: 24px;
             }
         }
     </style>
@@ -288,11 +288,11 @@
                     e.stopPropagation();
                     isProcessing = true;
                     
-                    console.log("🔊 Sound button tapped/clicked");
+                    console.log("🔊 Sound button event fired! Type:", e.type);
                     
                     // Initialize audio on first interaction (CRITICAL for iOS!)
                     if (!audioInitialized) {
-                        console.log("🎵 First sound button tap - unlocking audio...");
+                        console.log("🎵 First sound button interaction - unlocking audio...");
                         
                         try {
                             // Direct Tone.start() call from button event
@@ -341,9 +341,18 @@
                     setTimeout(() => { isProcessing = false; }, 500);
                 };
                 
-                // Use touchend for mobile, click for desktop
-                soundButton.addEventListener('touchend', handleSoundToggle);
-                soundButton.addEventListener('click', handleSoundToggle);
+                // CRITICAL: Use ONLY ONE event type per device!
+                // Touch devices: use touchstart (more reliable than touchend)
+                // Desktop: use click
+                const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+                
+                if (isTouchDevice) {
+                    console.log("🔧 Touch device detected - using touchstart event");
+                    soundButton.addEventListener('touchstart', handleSoundToggle, { passive: false });
+                } else {
+                    console.log("🔧 Desktop detected - using click event");
+                    soundButton.addEventListener('click', handleSoundToggle);
+                }
                 
                 console.log("✅ Sound button ready");
             }
